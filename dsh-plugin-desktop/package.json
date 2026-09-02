@@ -261,6 +261,7 @@
     "@deepseek-ai/dsh-user-approval": "0.1.2-alpha.4",
     "@deepseek-ai/dsh-user-questions": "0.1.2-alpha.4",
     "@deepseek-ai/dsh-util-crypto": "0.1.2-alpha.4",
+    "@deepseek-ai/dsh-util-time": "0.1.2-alpha.4",
     "@deepseek-ai/dsh-util-workspace-path": "0.1.2-alpha.4",
     "@deepseek-ai/dsh-web": "0.1.2-alpha.4",
     "@deepseek-ai/dsh-web-app": "0.1.2-alpha.4",

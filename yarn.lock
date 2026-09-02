@@ -4153,6 +4153,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@deepseek-ai/dsh-util-time@file:vendor/dsh-runtime/0.1.2-alpha.4/deepseek-ai-dsh-util-time-0.1.2-alpha.4.tgz::locator=deepseek-harness-desktop%40workspace%3A.":
+  version: 0.1.2-alpha.4
+  resolution: "@deepseek-ai/dsh-util-time@file:vendor/dsh-runtime/0.1.2-alpha.4/deepseek-ai-dsh-util-time-0.1.2-alpha.4.tgz#vendor/dsh-runtime/0.1.2-alpha.4/deepseek-ai-dsh-util-time-0.1.2-alpha.4.tgz::hash=175e5c&locator=deepseek-harness-desktop%40workspace%3A."
+  peerDependencies:
+    "@deepseek-ai/cordis": ^4.0.2
+  checksum: 10c0/6ae8f3a707a5ba42895a8238ae3bc9e1c96da1b8e46e36828955da56a7e93cea8d1445860c02480e8313361d2be26561b6468597af45b83a757bf8161458fda2
+  languageName: node
+  linkType: hard
+
 "@deepseek-ai/dsh-util-values@file:vendor/dsh-runtime/0.1.2-alpha.4/deepseek-ai-dsh-util-values-0.1.2-alpha.4.tgz::locator=deepseek-harness-desktop%40workspace%3A.":
   version: 0.1.2-alpha.4
   resolution: "@deepseek-ai/dsh-util-values@file:vendor/dsh-runtime/0.1.2-alpha.4/deepseek-ai-dsh-util-values-0.1.2-alpha.4.tgz#vendor/dsh-runtime/0.1.2-alpha.4/deepseek-ai-dsh-util-values-0.1.2-alpha.4.tgz::hash=bb450d&locator=deepseek-harness-desktop%40workspace%3A."
@@ -9013,6 +9022,7 @@ __metadata:
     "@deepseek-ai/dsh-user-approval": "npm:0.1.2-alpha.4"
     "@deepseek-ai/dsh-user-questions": "npm:0.1.2-alpha.4"
     "@deepseek-ai/dsh-util-crypto": "npm:0.1.2-alpha.4"
+    "@deepseek-ai/dsh-util-time": "npm:0.1.2-alpha.4"
     "@deepseek-ai/dsh-util-workspace-path": "npm:0.1.2-alpha.4"
     "@deepseek-ai/dsh-web": "npm:0.1.2-alpha.4"
     "@deepseek-ai/dsh-web-app": "npm:0.1.2-alpha.4"
