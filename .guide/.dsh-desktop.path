@@ -1,0 +1,73 @@
+项目名称：dsh-desktop (DSH Desktop)
+包名：dsh-plugin-desktop
+应用描述：DeepSeek Harness Desktop - 基于 Electron 的 DSH 桌面客户端，采用 Cordis 插件化架构
+当前版本：2.0.4
+许可证：MIT
+
+## 技术栈
+
+Electron：43.3.0（peerDependency）
+Node.js：^22.19.0 || >=24.0.0
+TypeScript：6.0.3
+React：18.3.1
+Cordis：4.0.1（插件框架）
+Tailwind CSS：4.x
+shadcn：4.18.0
+构建工具：tsdown 0.22.2 + Vite 8.2.1
+打包工具：electron-builder 26.15.7
+测试框架：vitest 4.1.8
+
+## 包管理
+
+根 workspace：Yarn 4.18.0（nodeLinker: node-modules）
+上游子模块：pnpm（独立 workspace）
+
+## 平台配置
+
+Windows：
+  目标：NSIS 安装器 (x64)
+  Portable：支持
+  ACL 沙箱：支持
+  PowerShell 沙箱：支持
+
+macOS：
+  目标：Universal DMG（x64 + arm64）
+  Hardened Runtime：启用
+  公证：启用
+  原生材质：支持
+
+Linux：
+  目标：Dir（未打包安装器）
+
+## Monorepo 结构
+
+dsh-plugin-desktop/     # 主包 - Electron Shell + Cordis Host/Client 插件
+dsh-community-market/   # 插件市场壳（文档阶段，v0.1.0-dev.0）
+dsh-community-fabric/   # 社区互操作 RFC（文档阶段，v0.1.0-dev.0）
+deepseek-harness/       # 上游官方 DSH（Git submodule，只读）
+
+## 关键文件路径
+
+核心配置：dsh-plugin-desktop/package.json（build 字段）
+主进程入口：dsh-plugin-desktop/src/main.ts
+客户端入口：dsh-plugin-desktop/src/client/index.ts
+Native UI：dsh-plugin-desktop/src/native-ui/
+打包脚本：dsh-plugin-desktop/scripts/
+构建资源：dsh-plugin-desktop/build/
+产品文档：docs/
+架构说明：docs/architecture.md
+Agent 决策：.agents/notes/
+
+## 注意事项
+
+- deepseek-harness/ 是固定版本上游子模块，不要在 desktop 分支中修改
+- 上游子模块使用 pnpm，根 workspace 使用 Yarn
+- 所有构建和测试必须保持 headless 安全
+- Generation 模型：profile/模式切换 dispose 当前 generation，不可跨 generation 缓存
+- Desktop 不使用 renderer IPC 插件系统
+
+## Git 仓库
+
+Git 仓库：
+  地址：https://github.com/anywhere-labs/dsh-desktop.git
+  分支：master

@@ -1,0 +1,13 @@
+# 账号信息（待填写）
+
+## npm 发布
+# registry: https://registry.npmjs.org
+# token: （填写 npm access token）
+
+## macOS 签名
+# Developer ID: （填写）
+# Apple Team ID: （填写）
+# 公证: 需要 Apple 公证（notarize: true）
+
+## DeepSeek API
+# API Key: （填写，用于 LLM 调用）
