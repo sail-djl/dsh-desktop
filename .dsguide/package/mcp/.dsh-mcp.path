@@ -1,0 +1,26 @@
+项目名称：DSH MCP 包层
+包名：@deepseek-ai/dsh-mcp-client
+应用描述：MCP client bridge — 连接 MCP Server 并注册工具到 DSH
+当前版本：0.1.1-rc.2
+模块类型：ESM (type: module)
+
+技术栈：
+  语言：TypeScript
+  MCP SDK：@modelcontextprotocol/sdk
+  插件框架：Cordis
+
+核心源码：
+  index.ts        → Cordis 插件入口 (apply + 配置验证)
+  connection.ts   → 连接管理 (重连 + 生命周期)
+  tools.ts        → 工具桥接 (发现 + 注册 + 执行)
+  transport.ts    → 传输层 (stdio / streamable-http)
+
+关键依赖：
+  @modelcontextprotocol/sdk  → MCP SDK
+  @deepseek-ai/dsh-tools     → DSH 工具注册表
+  @deepseek-ai/cordis        → 微内核
+
+Git 仓库：
+  地址：https://github.com/deepseek-ai/deepseek-harness
+  目录：packages/mcp/mcp-client
+  分支：main

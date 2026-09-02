@@ -1,0 +1,24 @@
+项目名称：DSH Bundle 层
+包名：@deepseek-ai/dsh-base / dsh-web-app / dsh-headless
+应用描述：DSH 插件束层 — 把一组插件打包为 profile 可引用的 bundle
+当前版本：0.1.1-rc.2
+模块类型：ESM (type: module)
+
+技术栈：
+  语言：TypeScript
+  插件声明：cordis.patch.yml
+
+Bundle 清单：
+  dsh-base     → 基础层 (~65 插件)
+  dsh-web-app  → Web UI 层 (~60 插件)
+  dsh-headless → 无头层 (最小配置)
+
+关键文件路径：
+  base cordis.patch.yml：packages/bundle/base/cordis.patch.yml
+  web-app cordis.patch.yml：packages/bundle/web-app/cordis.patch.yml
+  headless cordis.patch.yml：packages/bundle/headless/cordis.patch.yml
+
+Git 仓库：
+  地址：https://github.com/deepseek-ai/deepseek-harness
+  目录：packages/bundle
+  分支：main
