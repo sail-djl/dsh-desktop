@@ -478,8 +478,8 @@
       "name": "@deepseek-ai/dsh-agent-presets",
       "version": "0.1.2-alpha.4",
       "filename": "deepseek-ai-dsh-agent-presets-0.1.2-alpha.4.tgz",
-      "size": 138759,
-      "sha256": "663331a113cb83b617232d4ac05bc4cf610320fb9b19e2ac1347d400e16285a6"
+      "size": 141533,
+      "sha256": "b25769fc8171ea048a5cec17ec23a607217689ca84edf9fd282c68c98372e0f2"
     },
     {
       "name": "@deepseek-ai/dsh-plugin-package-inventory-deepseek",
