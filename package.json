@@ -9,6 +9,7 @@
   },
   "workspaces": [
     "dsh-plugin-desktop",
+    "dsh-plugin-desktop-spec",
     "dsh-plugin-desktop-beta",
     "dsh-community-fabric",
     "dsh-community-market"

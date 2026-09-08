@@ -1,0 +1,26 @@
+# Code 版配置清单 — 面向开发岗（编码 Agent）
+identity:
+  appId: "ai.deepseek.dsh.code.desktop"
+  productName: "百洲DSH Code"
+  shortcutName: "百洲 DSH Code"
+  packageName: "dsh-plugin-desktop-code"
+  artifactName: "Baizhou-DSH-Code-${version}-${arch}-Setup.${ext}"
+
+brand:
+  appIcon: "app-icon.png"
+  trayIcons: "build"
+
+plugins:
+  addBuiltin: []
+  removeBuiltin: []
+  toggles: {}
+
+agentPresets:
+  sourceDir: ""
+  # 构建时从 node_modules 中移除的预设目录
+  removeShippedPresets:
+    - minimal
+    - cordis
+
+profile:
+  composeOptions: {}

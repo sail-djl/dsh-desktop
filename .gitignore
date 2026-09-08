@@ -14,3 +14,9 @@ dsh-plugin-desktop/lib/
 dsh-community-market/lib/
 
 .env.yarn
+/.idea/inspectionProfiles/Project_Default.xml
+/.idea/.gitignore
+/.idea/dsh-desktop.iml
+/.idea/git_toolbox_prj.xml
+/.idea/modules.xml
+/.idea/vcs.xml

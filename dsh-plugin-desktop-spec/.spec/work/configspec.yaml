@@ -1,0 +1,28 @@
+# Work 版配置清单 — 面向产品岗（工作 Agent）
+identity:
+  appId: "ai.deepseek.dsh.work.desktop"
+  productName: "百洲DSH Work"
+  shortcutName: "百洲 DSH Work"
+  packageName: "dsh-plugin-desktop-work"
+  artifactName: "Baizhou-DSH-Work-${version}-${arch}-Setup.${ext}"
+
+brand:
+  appIcon: "app-icon.png"
+  trayIcons: "build"
+
+plugins:
+  addBuiltin: []
+  removeBuiltin: []
+  toggles: {}
+
+agentPresets:
+  sourceDir: ""
+  removeShippedPresets:
+    - bzcode
+    - bzcode-haiyu
+    - bzcode-shuili
+    - cordis
+    - minimal
+
+profile:
+  composeOptions: {}
