@@ -1,0 +1,38 @@
+项目名称：dsh-desktop (deepseek-harness-desktop)
+应用描述：DeepSeek Harness 桌面端产品 — 基于 Electron 的 AI Agent 桌面客户端
+当前版本：dsh-plugin-desktop@2.0.5 / deepseek-harness@0.1.3-alpha.2
+许可证：MIT
+
+技术栈：
+  语言：TypeScript (ESM)
+  运行时：Node.js ^22.19.0 或 >=24.0.0
+  桌面框架：Electron 43.3.0
+  包管理：Yarn 4.18.0 (Berry, workspaces)
+  UI 框架：React 18.3.1 + Tailwind CSS 4 + shadcn
+  构建：tsdown + Vite + electron-builder
+  测试：Vitest
+  内核：Cordis (来自 deepseek-harness)
+
+Workspace 包：
+  - dsh-plugin-desktop        # 主力桌面插件
+  - dsh-plugin-desktop-spec   # Spec 版
+  - dsh-plugin-desktop-beta   # Beta 版
+  - dsh-community-market      # 插件市场
+  - dsh-community-fabric      # 社区 Fabric
+
+核心依赖（vendor 化）：
+  @deepseek-ai/dsh-* (0.1.2-rc.1) — 通过 vendor/dsh-runtime/ 本地 tgz 引入
+  deepseek-harness — git submodule
+
+关键文件路径：
+  根配置：package.json
+  桌面插件：dsh-plugin-desktop/package.json
+  Cordis 补丁：dsh-plugin-desktop/cordis.patch.yml
+  Native UI 配置：dsh-plugin-desktop/vite.native-ui.config.ts
+  核心框架：deepseek-harness/package.json
+
+注意事项：
+  - Yarn Berry 需要 corepack enable
+  - deepseek-harness 是 git submodule，需 git submodule update --init --recursive
+  - vendor/dsh-runtime/ 包含预构建 tgz，不可删除
+  - 构建顺序：deepseek-harness (pnpm build) → dsh-plugin-desktop (yarn build)
