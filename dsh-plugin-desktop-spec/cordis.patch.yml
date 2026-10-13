@@ -2,22 +2,22 @@
 # mode keeps upstream ownership of the browser carrier and rendered UI.
 - insert:
     - id: desktop-shell
-      name: dsh-plugin-desktop
+      name: dsh-plugin-desktop-code
       config:
         mode: compatibility
     - id: desktop-terminal
-      name: dsh-plugin-desktop/terminal
+      name: dsh-plugin-desktop-code/terminal
       disabled: !!js process.platform === 'linux'
     - id: desktop-diagnostics
-      name: dsh-plugin-desktop/diagnostics
+      name: dsh-plugin-desktop-code/diagnostics
     - id: desktop-notifications
-      name: dsh-plugin-desktop/notifications
+      name: dsh-plugin-desktop-code/notifications
     - id: desktop-pnpm
-      name: dsh-plugin-desktop/pnpm
+      name: dsh-plugin-desktop-code/pnpm
     - id: desktop-profiles
-      name: dsh-plugin-desktop/profiles
+      name: dsh-plugin-desktop-code/profiles
     - id: desktop-updates
-      name: dsh-plugin-desktop/updates
+      name: dsh-plugin-desktop-code/updates
 
 # A desktop launch has no terminal operator waiting for the Web readiness line.
 - id: web-runtime
@@ -26,3 +26,6 @@
     printUrl: false
     surfaceContext: true
     trustedHosts: []
+- insert:
+    - id: better-sidebar
+      name: 'dsh-better-sidebar'

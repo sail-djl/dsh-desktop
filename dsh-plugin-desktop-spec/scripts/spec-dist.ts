@@ -8,7 +8,7 @@
  * 前置条件：先运行 spec-build.ts <spec-name> 完成 tsdown 构建。
  */
 
-import { existsSync, readFileSync, renameSync, copyFileSync, writeFileSync, readdirSync, cpSync } from 'node:fs'
+import { existsSync, readFileSync, renameSync, copyFileSync, writeFileSync, readdirSync, cpSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -17,6 +17,7 @@ import { parseDocument } from 'yaml'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DESKTOP_ROOT = resolve(__dirname, '..')
+const LOCAL_PLUGINS_BASE = resolve('E:\\baizhoucode\\companyagent\\dsplug')
 const require = createRequire(import.meta.url)
 
 /** 原始 cordis.patch.yml 内容（引用 dsh-plugin-desktop），每次打包从这里恢复 */
@@ -223,6 +224,134 @@ function restoreShippedPresets(removed: Map<string, string>): void {
   if (removed.size > 0 || true) console.log('  Restored shipped presets')
 }
 
+/** 将 spec 自定义 agent presets 复制到 shipped presets 目录，打包进 asar */
+function applyAgentPresets(specDir: string, config: Record<string, unknown>): { added: Set<string>; backups: Map<string, string> } {
+  const added = new Set<string>()
+  const backups = new Map<string, string>()
+
+  const agentPresets = config.agentPresets as Record<string, unknown> | undefined
+  if (agentPresets === undefined) return { added, backups }
+
+  const sourceDir = getString(agentPresets, 'sourceDir')
+  if (sourceDir === undefined || sourceDir === '') return { added, backups }
+
+  const sourcePath = resolve(specDir, sourceDir)
+  if (!existsSync(sourcePath)) {
+    console.warn(`  Warning: agentPresets.sourceDir not found: ${sourcePath}`)
+    return { added, backups }
+  }
+
+  let presetsDir: string | undefined
+  try {
+    const presetsPackageDir = dirname(require.resolve('@deepseek-ai/dsh-agent-presets/package.json'))
+    presetsDir = join(presetsPackageDir, 'presets')
+  } catch {
+    console.warn('  Warning: shipped presets directory not found, skipping custom presets')
+    return { added, backups }
+  }
+
+  const entries = readdirSync(sourcePath, { withFileTypes: true })
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const presetName = entry.name
+    const presetSource = join(sourcePath, presetName)
+    const targetPath = join(presetsDir, presetName)
+
+    if (existsSync(targetPath)) {
+      const backupPath = join(presetsDir, `._spec_backup_custom_${presetName}`)
+      renameSync(targetPath, backupPath)
+      backups.set(presetName, backupPath)
+    }
+
+    cpSync(presetSource, targetPath, { recursive: true })
+    added.add(presetName)
+    console.log(`  Installed custom preset: ${presetName}`)
+  }
+
+  if (added.size === 0) {
+    console.log('  No custom presets found in sourceDir')
+  }
+  return { added, backups }
+}
+
+/** 恢复自定义 presets（清理打包时复制的文件，恢复被覆盖的 shipped presets） */
+function restoreCustomPresets(added: Set<string>, backups: Map<string, string>): void {
+  if (added.size === 0) return
+  let presetsDir: string | undefined
+  try {
+    const presetsPackageDir = dirname(require.resolve('@deepseek-ai/dsh-agent-presets/package.json'))
+    presetsDir = join(presetsPackageDir, 'presets')
+  } catch { return }
+
+  for (const name of added) {
+    const targetPath = join(presetsDir, name)
+    if (existsSync(targetPath)) {
+      rmSync(targetPath, { recursive: true, force: true })
+    }
+    const backupPath = backups.get(name)
+    if (backupPath !== undefined && existsSync(backupPath)) {
+      renameSync(backupPath, targetPath)
+    }
+  }
+  console.log('  Restored custom presets')
+}
+
+/** 向 cordis.patch.yml 追加 addBuiltin 插件的 insert 声明 */
+function addPluginInserts(config: Record<string, unknown>): void {
+  const plugins = config.plugins as Record<string, unknown> | undefined
+  const addBuiltin = plugins?.addBuiltin as string[] | undefined
+  if (!Array.isArray(addBuiltin) || addBuiltin.length === 0) return
+
+  const patchPath = join(DESKTOP_ROOT, 'cordis.patch.yml')
+  if (!existsSync(patchPath)) return
+
+  const lines: string[] = []
+  for (const pkgName of addBuiltin) {
+    const id = pkgName.replace(/^.*?-/, '') || pkgName
+    lines.push(`- insert:`)
+    lines.push(`    - id: ${id}`)
+    lines.push(`      name: '${pkgName}'`)
+    lines.push('')
+  }
+
+  const content = readFileSync(patchPath, 'utf8')
+  writeFileSync(patchPath, content + lines.join('\n'), 'utf8')
+  console.log(`  Added plugin insert entries for: ${addBuiltin.join(', ')}`)
+}
+
+/** 将 configspec.plugins.addBuiltin 中声明的插件从本地路径复制到 node_modules，打包进 asar */
+function applyPlugins(config: Record<string, unknown>): Set<string> {
+  const installed = new Set<string>()
+  const plugins = config.plugins as Record<string, unknown> | undefined
+  const addBuiltin = plugins?.addBuiltin as string[] | undefined
+  if (!Array.isArray(addBuiltin) || addBuiltin.length === 0) return installed
+
+  console.log('\nApplying builtin plugins:')
+  for (const pkgName of addBuiltin) {
+    const sourcePath = join(LOCAL_PLUGINS_BASE, pkgName)
+    if (!existsSync(sourcePath)) {
+      console.warn(`  Warning: builtin plugin source not found: ${sourcePath}, skipping ${pkgName}`)
+      continue
+    }
+    const targetPath = join(DESKTOP_ROOT, 'node_modules', pkgName)
+    cpSync(sourcePath, targetPath, { recursive: true })
+    installed.add(pkgName)
+    console.log(`  Installed builtin plugin: ${pkgName} (from ${sourcePath})`)
+  }
+  return installed
+}
+
+/** 恢复：删除打包时复制到 node_modules 的内置插件 */
+function restorePlugins(installed: Set<string>): void {
+  for (const pkgName of installed) {
+    const targetPath = join(DESKTOP_ROOT, 'node_modules', pkgName)
+    if (existsSync(targetPath)) {
+      rmSync(targetPath, { recursive: true, force: true })
+    }
+  }
+  if (installed.size > 0) console.log('  Restored builtin plugins')
+}
+
 async function main(): Promise<void> {
   const specName = process.argv[2]
   if (specName === undefined || specName === '') {
@@ -271,6 +400,9 @@ async function main(): Promise<void> {
     console.log(`  Replaced "dsh-plugin-desktop" → "${pkgName}" in cordis.patch.yml`)
   }
 
+  // 2.65 向 cordis.patch.yml 追加 addBuiltin 插件的 insert 声明
+  addPluginInserts(config)
+
   // 2.7 移除不需要的 shipped 预设（打包进 asar 前）
   const removedPresets = removeShippedPresets(config)
   // 传递移除的预设列表给验证脚本
@@ -279,13 +411,22 @@ async function main(): Promise<void> {
     process.env.DSH_SPEC_REMOVE_PRESETS = removeList.join(',')
   }
 
-  // 2.8 应用品牌资源（确保 build/app-icon.png 是 spec 版本的 icon）
+  // 2.8 安装自定义 agent presets（在打包进 asar 前）
+  console.log('\nApplying agent presets:')
+  const customPresets = applyAgentPresets(specDir, config)
+
+  // 2.85 安装内置插件到 node_modules（addBuiltin）
+  const builtinPlugins = applyPlugins(config)
+
+  // 2.9 应用品牌资源（确保 build/app-icon.png 是 spec 版本的 icon）
   applyBrandAssets(specDir, config)
 
-  // 3. 构建 electron-builder 命令
+  // 3. 构建 electron-builder 命令 — 分两步：
+  //    Step 1: --dir 创建 unpacked 目录（不打包 asar）
+  //    Step 2: --prepackaged 从 unpacked 目录打包 asar + NSIS
+  //    中间注入 addBuiltin 插件到 node_modules，确保打包进 asar
   const builderCli = require.resolve('electron-builder/cli.js')
-  const builderArgs = [
-    builderCli,
+  const commonArgs = [
     '--win', 'nsis',
     '--x64',
     '--publish', 'never',
@@ -294,27 +435,65 @@ async function main(): Promise<void> {
   ]
 
   if (artifactName !== undefined && artifactName !== '') {
-    builderArgs.push(`--config.win.artifactName=${artifactName}`)
+    commonArgs.push(`--config.win.artifactName=${artifactName}`)
   }
 
   // 跳过 afterPack 钩子（dsh-community-market 缺少 src/adapters/dsh-marketplace.ts）
-  builderArgs.push('--config.afterPack=./scripts/noop-after-pack.ts')
+  commonArgs.push('--config.afterPack=./scripts/noop-after-pack.ts')
 
-  run(process.execPath, builderArgs, DESKTOP_ROOT)
+  const unpackedDir = join(DESKTOP_ROOT, 'dist', 'win-unpacked')
 
-  // 4. 运行验证脚本（Node 22.19+ 原生支持 .ts）
-  const verifier = join(DESKTOP_ROOT, 'scripts', 'verify-win-installer.ts')
-  if (existsSync(verifier)) {
-    run(process.execPath, ['--experimental-strip-types', verifier], DESKTOP_ROOT)
+  try {
+    // Step 1: 创建 unpacked 目录（--dir 只创建目录，不打包 asar）
+    console.log('\n--- Step 1: Creating unpacked directory ---')
+    run(process.execPath, [builderCli, ...commonArgs, '--dir'], DESKTOP_ROOT)
+
+    // Step 2: 将 addBuiltin 插件注入到 unpacked 目录的 node_modules
+    if (builtinPlugins.size > 0) {
+      console.log('\n--- Step 2: Injecting plugins into unpacked app ---')
+      const appDir = join(unpackedDir, 'resources', 'app')
+      const appNodeModules = join(appDir, 'node_modules')
+      for (const pkgName of builtinPlugins) {
+        const sourcePath = join(LOCAL_PLUGINS_BASE, pkgName)
+        const targetPath = join(appNodeModules, pkgName)
+        cpSync(sourcePath, targetPath, { recursive: true })
+        console.log(`  Injected ${pkgName} → ${targetPath}`)
+      }
+
+      // Step 2.5: 重新打包 asar（--dir 不创建 asar，--prepackaged 不重新打包）
+      //   使用 @electron/asar 将 resources/app 目录打包为 app.asar
+      console.log('\n--- Step 2.5: Repacking asar with injected plugins ---')
+      try {
+        const asar = require('@electron/asar') as { createPackage: (src: string, dest: string) => void }
+        const asarPath = join(unpackedDir, 'resources', 'app.asar')
+        rmSync(asarPath, { force: true })
+        asar.createPackage(appDir, asarPath)
+        console.log(`  Repacked asar: ${asarPath}`)
+      } catch (err) {
+        console.warn(`  Warning: asar repack failed, plugins may not be in asar: ${err}`)
+      }
+    }
+
+    // Step 3: 从修改后的 unpacked 目录构建 NSIS 安装器
+    console.log('\n--- Step 3: Building NSIS installer from pre-packed directory ---')
+    run(process.execPath, [builderCli, ...commonArgs, '--prepackaged', unpackedDir], DESKTOP_ROOT)
+
+    // 4. 运行验证脚本（Node 22.19+ 原生支持 .ts）
+    const verifier = join(DESKTOP_ROOT, 'scripts', 'verify-win-installer.ts')
+    if (existsSync(verifier)) {
+      run(process.execPath, ['--experimental-strip-types', verifier], DESKTOP_ROOT)
+    }
+  } finally {
+    // 5. 恢复自定义 presets、shipped 预设、内置插件、package.json、cordis.patch.yml
+    restoreCustomPresets(customPresets.added, customPresets.backups)
+    restoreShippedPresets(removedPresets)
+    restorePlugins(builtinPlugins)
+    if (existsSync(pkgBackupPath)) {
+      renameSync(pkgBackupPath, join(DESKTOP_ROOT, 'package.json'))
+    }
+    writeFileSync(join(DESKTOP_ROOT, 'cordis.patch.yml'), ORIGINAL_CORDIS_PATCH, 'utf-8')
+    console.log('  Restored cordis.patch.yml')
   }
-
-  // 5. 恢复 shipped 预设、package.json、cordis.patch.yml
-  restoreShippedPresets(removedPresets)
-  if (existsSync(pkgBackupPath)) {
-    renameSync(pkgBackupPath, join(DESKTOP_ROOT, 'package.json'))
-  }
-  writeFileSync(join(DESKTOP_ROOT, 'cordis.patch.yml'), ORIGINAL_CORDIS_PATCH, 'utf-8')
-  console.log('  Restored cordis.patch.yml')
 
   console.log(`\n=== Spec ${specName} package complete ===`)
 }

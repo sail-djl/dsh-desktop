@@ -51,6 +51,12 @@ agentPresets:
   removeShippedPresets:                       # 构建时移除的预设目录
     - minimal
     - cordis
+
+plugins:
+  addBuiltin:                                 # 构建时安装到 node_modules 的内置插件（本地路径）
+    - dsh-better-sidebar                      # 源自 E:\baizhoucode\companyagent\dsplug\dsh-better-sidebar
+  removeBuiltin: []                           # 预留：移除内置插件
+  toggles: {}                                 # 预留：插件开关
 ```
 
 ## 4. 构建流程
@@ -61,12 +67,13 @@ agentPresets:
 
 1. 读取 `configspec.yaml` → 设置环境变量 `DSH_SPEC_*`
 2. 临时修改 `package.json`（name、productName、appId）
-3. 临时替换 `cordis.patch.yml` 中的包名引用
+3. 临时替换 `cordis.patch.yml` 中的包名引用 + 追加 `addBuiltin` 插件的 insert 声明
 4. 复制品牌图标到 `build/`
 5. **安装自定义 agent presets**：将 `.spec/{name}/agent-presets/` 复制到 shipped presets 目录
 6. 移除指定的 shipped presets
-7. 执行 tsdown / electron-builder
-8. **恢复所有修改的文件**（try/finally 保护，先删自定义 preset 再恢复 shipped preset）
+7. **安装内置插件**：将 `addBuiltin` 中声明的插件从本地路径（`E:\...\dsplug\`）复制到 `node_modules/`
+8. 执行 tsdown / electron-builder
+9. **恢复所有修改的文件**（try/finally 保护：删自定义 preset → 恢复 shipped preset → 删内置插件 → 恢复 package.json → 恢复 cordis.patch.yml）
 
 ### 4.2 AUMID 注入机制
 
@@ -166,6 +173,6 @@ dsh-plugin-desktop-spec/dist/
 | 换托盘图标 | 运行 `py scripts/gen-spec-icons.py` 从 app-icon 生成 |
 | 添加自定义预设 | `.spec/{name}/agent-presets/{preset-name}/`（`preset.yml` + `agent.cordis.yml`）+ configspec.yaml 设置 `sourceDir` |
 | 调整移除预设 | configspec.yaml 的 `agentPresets.removeShippedPresets` |
-| 内置插件 | `package.json` 的 `dependencies` |
+| 添加内置插件 | configspec.yaml 的 `plugins.addBuiltin`（插件源码放在 `E:\...\dsplug\{pkg-name}\`，构建时自动复制到 `node_modules/` 并追加 cordis.patch.yml insert） |
 | 版本号 | `package.json` 的 `version` 字段 |
 | DSH 依赖版本 | 参考 `.guide/dsh更新/dsh更新.md` |

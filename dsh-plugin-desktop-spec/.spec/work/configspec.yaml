@@ -11,7 +11,8 @@ brand:
   trayIcons: "build"
 
 plugins:
-  addBuiltin: []
+  addBuiltin:
+    - dsh-better-sidebar
   removeBuiltin: []
   toggles: {}
 

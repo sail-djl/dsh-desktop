@@ -11,12 +11,13 @@ brand:
   trayIcons: "build"
 
 plugins:
-  addBuiltin: []
+  addBuiltin:
+    - dsh-better-sidebar
   removeBuiltin: []
   toggles: {}
 
 agentPresets:
-  sourceDir: ""
+  sourceDir: "agent-presets"
   # 构建时从 node_modules 中移除的预设目录
   removeShippedPresets:
     - minimal

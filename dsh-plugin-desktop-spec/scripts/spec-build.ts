@@ -6,7 +6,7 @@
  *       node scripts/spec-build.ts work
  */
 
-import { existsSync, cpSync, readFileSync, readdirSync, writeFileSync, copyFileSync, renameSync } from 'node:fs'
+import { existsSync, cpSync, readFileSync, readdirSync, writeFileSync, copyFileSync, renameSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -15,6 +15,7 @@ import { parseDocument } from 'yaml'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DESKTOP_ROOT = resolve(__dirname, '..')
+const LOCAL_PLUGINS_BASE = resolve('E:\\baizhoucode\\companyagent\\dsplug')
 const require = createRequire(import.meta.url)
 
 /** 从 configspec.yaml 读取配置 */
@@ -252,7 +253,10 @@ function restoreSourceReplacements(): void {
   }
 }
 
-/** 标记 spec 专属 agent presets 路径 */
+/** 将 spec 自定义 agent presets 复制到 shipped presets 目录，运行时自动发现 */
+const customPresetsAdded = new Set<string>() // 已复制的 preset 目录名
+const customPresetsBackup = new Map<string, string>() // presetName → backupPath
+
 function applyAgentPresets(specDir: string, config: Record<string, unknown>): void {
   const agentPresets = config.agentPresets as Record<string, unknown> | undefined
   if (agentPresets === undefined) return
@@ -266,8 +270,57 @@ function applyAgentPresets(specDir: string, config: Record<string, unknown>): vo
     return
   }
 
-  process.env.DSH_SPEC_AGENT_PRESETS_DIR = sourcePath
-  console.log(`  Agent presets source: ${sourcePath}`)
+  const presetsDir = findShippedPresetsDir()
+  if (presetsDir === undefined) {
+    console.warn('  Warning: shipped presets directory not found, skipping custom presets')
+    return
+  }
+
+  // 扫描 sourceDir 下的子目录，每个子目录即一个 preset
+  const entries = readdirSync(sourcePath, { withFileTypes: true })
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const presetName = entry.name
+    const presetSource = join(sourcePath, presetName)
+    const targetPath = join(presetsDir, presetName)
+
+    // 如果目标目录已存在（如 shipped 同名 preset），先备份
+    if (existsSync(targetPath)) {
+      const backupPath = join(presetsDir, `._spec_backup_custom_${presetName}`)
+      renameSync(targetPath, backupPath)
+      customPresetsBackup.set(presetName, backupPath)
+    }
+
+    cpSync(presetSource, targetPath, { recursive: true })
+    customPresetsAdded.add(presetName)
+    console.log(`  Installed custom preset: ${presetName}`)
+  }
+
+  if (customPresetsAdded.size === 0) {
+    console.log('  No custom presets found in sourceDir')
+  }
+}
+
+/** 恢复自定义 presets（清理构建时复制的文件，恢复被覆盖的 shipped presets） */
+function restoreCustomPresets(): void {
+  if (customPresetsAdded.size === 0) return
+  const presetsDir = findShippedPresetsDir()
+  if (presetsDir === undefined) return
+
+  for (const name of customPresetsAdded) {
+    const targetPath = join(presetsDir, name)
+    if (existsSync(targetPath)) {
+      rmSync(targetPath, { recursive: true, force: true })
+    }
+    // 恢复被覆盖的 shipped preset
+    const backupPath = customPresetsBackup.get(name)
+    if (backupPath !== undefined && existsSync(backupPath)) {
+      renameSync(backupPath, targetPath)
+    }
+  }
+  customPresetsAdded.clear()
+  customPresetsBackup.clear()
+  console.log('  Restored custom presets')
 }
 
 /** 从 node_modules 中移除不需要的 shipped 预设，打包后恢复 */
@@ -319,6 +372,65 @@ function findShippedPresetsDir(): string | undefined {
   } catch {
     return undefined
   }
+}
+
+/** 向 cordis.patch.yml 追加 addBuiltin 插件的 insert 声明 */
+function addPluginInserts(config: Record<string, unknown>): void {
+  const plugins = config.plugins as Record<string, unknown> | undefined
+  const addBuiltin = plugins?.addBuiltin as string[] | undefined
+  if (!Array.isArray(addBuiltin) || addBuiltin.length === 0) return
+
+  const patchPath = join(DESKTOP_ROOT, 'cordis.patch.yml')
+  if (!existsSync(patchPath)) return
+
+  const lines: string[] = []
+  for (const pkgName of addBuiltin) {
+    // 格式：短横线后取包名后缀作为 id（如 dsh-better-sidebar → better-sidebar）
+    const id = pkgName.replace(/^.*?-/, '') || pkgName
+    lines.push(`- insert:`)
+    lines.push(`    - id: ${id}`)
+    lines.push(`      name: '${pkgName}'`)
+    lines.push('')
+  }
+
+  const content = readFileSync(patchPath, 'utf8')
+  writeFileSync(patchPath, content + lines.join('\n'), 'utf8')
+  console.log(`  Added plugin insert entries for: ${addBuiltin.join(', ')}`)
+}
+
+/** 将 configspec.plugins.addBuiltin 中声明的插件从本地路径复制到 node_modules */
+const builtinPluginsInstalled = new Set<string>()
+
+function applyPlugins(config: Record<string, unknown>): void {
+  const plugins = config.plugins as Record<string, unknown> | undefined
+  const addBuiltin = plugins?.addBuiltin as string[] | undefined
+  if (!Array.isArray(addBuiltin) || addBuiltin.length === 0) return
+
+  console.log('\nApplying builtin plugins:')
+  for (const pkgName of addBuiltin) {
+    const sourcePath = join(LOCAL_PLUGINS_BASE, pkgName)
+    if (!existsSync(sourcePath)) {
+      console.warn(`  Warning: builtin plugin source not found: ${sourcePath}, skipping ${pkgName}`)
+      continue
+    }
+    const targetPath = join(DESKTOP_ROOT, 'node_modules', pkgName)
+    cpSync(sourcePath, targetPath, { recursive: true })
+    builtinPluginsInstalled.add(pkgName)
+    console.log(`  Installed builtin plugin: ${pkgName} (from ${sourcePath})`)
+  }
+}
+
+/** 恢复：删除构建时复制到 node_modules 的内置插件 */
+function restorePlugins(): void {
+  if (builtinPluginsInstalled.size === 0) return
+  for (const pkgName of builtinPluginsInstalled) {
+    const targetPath = join(DESKTOP_ROOT, 'node_modules', pkgName)
+    if (existsSync(targetPath)) {
+      rmSync(targetPath, { recursive: true, force: true })
+    }
+  }
+  builtinPluginsInstalled.clear()
+  console.log('  Restored builtin plugins')
 }
 
 /** 执行构建命令 */
@@ -392,18 +504,24 @@ async function main(): Promise<void> {
   // 3. 恢复原始 cordis.patch.yml 并替换为目标包名
   backupAndApplyCordisPatch(config)
 
+  // 3.5 向 cordis.patch.yml 追加 addBuiltin 插件的 insert 声明
+  addPluginInserts(config)
+
   // 5. 应用品牌资源
   console.log('\nApplying brand assets:')
   applyBrandAssets(specDir, config)
 
-  // 6. 应用 agent presets
+  // 6. 安装自定义 agent presets（在移除 shipped 之前，避免冲突）
   console.log('\nApplying agent presets:')
   applyAgentPresets(specDir, config)
 
   // 6.5 移除不需要的 shipped 预设
   removeShippedPresets(config)
 
-  // 6.6 源码级环境变量替换（tsdown define 不作用于 code-split chunks）
+  // 6.6 安装内置插件到 node_modules（addBuiltin）
+  applyPlugins(config)
+
+  // 6.7 源码级环境变量替换（tsdown define 不作用于 code-split chunks）
   applySourceReplacements()
 
   // 7. 执行构建（直接调用 tsdown 二进制，避免 corepack ENOENT）
@@ -413,7 +531,9 @@ async function main(): Promise<void> {
   } finally {
     // 恢复原始文件
     restoreSourceReplacements()
-    restoreShippedPresets()
+    restoreCustomPresets() // 先清理自定义 presets
+    restoreShippedPresets() // 再恢复 shipped presets
+    restorePlugins() // 清理内置插件
     restorePackageJson()
     restoreCordisPatch()
   }
